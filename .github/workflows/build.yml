@@ -125,6 +125,11 @@ jobs:
             libxcb-randr0-dev \
             libxrandr-dev \
             libx11-dev \
+            libxi-dev \
+            libxtst-dev \
+            libxext-dev \
+            libxfixes-dev \
+            libxrender-dev \
             libssl-dev \
             pkg-config \
             fuse \
