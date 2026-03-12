@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.dawell.service</string>
+    <key>CFBundleName</key>
+    <string>DawellService</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>DawellService needs screen recording access for employee monitoring.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>DawellService needs accessibility access to monitor keyboard activity.</string>
+    <key>NSInputMonitoringUsageDescription</key>
+    <string>DawellService needs input monitoring access for keystroke logging.</string>
+</dict>
+</plist>
