@@ -134,6 +134,13 @@ jobs:
             pkg-config \
             fuse \
             libfuse2
+          # Verify xi.pc is present after install
+          pkg-config --modversion xi || true
+          find /usr -name "xi.pc" 2>/dev/null || true
+
+      - name: Set PKG_CONFIG_PATH
+        run: |
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
