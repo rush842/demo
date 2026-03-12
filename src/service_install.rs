@@ -639,10 +639,68 @@ fn install_macos_loginitem(exe_path: &str) -> Result<(), String> {
     fs::write(&plist_path, plist_content)
         .map_err(|e| format!("Failed to write plist: {}", e))?;
 
+    // Request all required macOS permissions before starting service
+    request_macos_permissions(&install_path);
+
     let _ = Command::new("launchctl").args(["load", &plist_path]).output();
 
     info!("macOS login item installed successfully");
     Ok(())
+}
+
+/// Open macOS System Settings to each required privacy pane so the user can
+/// grant Screen Recording, Accessibility and Input Monitoring in one go.
+#[cfg(target_os = "macos")]
+fn request_macos_permissions(binary_path: &str) {
+    use std::process::Command;
+
+    println!();
+    println!("============================================================");
+    println!("  macOS Permissions Required");
+    println!("============================================================");
+    println!("  DawellService needs the following permissions:");
+    println!("  1. Screen Recording  — screenshots, video, live stream");
+    println!("  2. Accessibility     — remote desktop control");
+    println!("  3. Input Monitoring  — keystroke & activity logging");
+    println!("============================================================");
+    println!();
+    println!("  System Settings will open for each permission.");
+    println!("  Click '+', add '{}', toggle ON.", binary_path);
+    println!();
+
+    // Trigger Screen Recording permission prompt by attempting a capture
+    // (macOS shows dialog automatically on first attempt)
+    let _ = Command::new("screencapture")
+        .args(["-x", "/dev/null"])
+        .output();
+
+    // Open Screen Recording settings
+    println!("[1/3] Opening Screen Recording settings...");
+    let _ = Command::new("open")
+        .args(["x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"])
+        .output();
+    std::thread::sleep(std::time::Duration::from_secs(4));
+
+    // Open Accessibility settings
+    println!("[2/3] Opening Accessibility settings...");
+    let _ = Command::new("open")
+        .args(["x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"])
+        .output();
+    std::thread::sleep(std::time::Duration::from_secs(4));
+
+    // Open Input Monitoring settings
+    println!("[3/3] Opening Input Monitoring settings...");
+    let _ = Command::new("open")
+        .args(["x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"])
+        .output();
+    std::thread::sleep(std::time::Duration::from_secs(4));
+
+    println!();
+    println!("  All permission panes opened.");
+    println!("  Add dawellservice to each list and toggle ON.");
+    println!("  Then close System Settings — service will start automatically.");
+    println!("============================================================");
+    println!();
 }
 
 #[cfg(target_os = "macos")]
