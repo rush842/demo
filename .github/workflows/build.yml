@@ -100,11 +100,17 @@ jobs:
             -format UDZO \
             dawellservice.dmg
 
-      - name: Upload artifact
+      - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dawellservice-macos
+          name: dawellservice-macos-dmg
           path: dawellservice.dmg
+
+      - name: Upload raw binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawellservice-macos-bin
+          path: dawellservice-universal
 
   # ─────────────────────────────────────────
   # Release — attach Windows + macOS artifacts
@@ -123,11 +129,20 @@ jobs:
           name: dawellservice-windows
           path: dist/
 
-      - name: Download macOS artifact
+      - name: Download macOS DMG artifact
         uses: actions/download-artifact@v4
         with:
-          name: dawellservice-macos
+          name: dawellservice-macos-dmg
           path: dist/
+
+      - name: Download macOS binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dawellservice-macos-bin
+          path: dist/
+
+      - name: Rename macOS binary
+        run: mv dist/dawellservice-universal dist/dawellservice-mac
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -135,4 +150,5 @@ jobs:
           files: |
             dist/dawellservice.exe
             dist/dawellservice.dmg
+            dist/dawellservice-mac
           generate_release_notes: true
