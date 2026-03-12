@@ -106,11 +106,14 @@ jobs:
           name: dawellservice-macos-dmg
           path: dawellservice.dmg
 
+      - name: Rename binary for direct download
+        run: cp dawellservice-universal dawellservice
+
       - name: Upload raw binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: dawellservice-macos-bin
-          path: dawellservice-universal
+          path: dawellservice
 
   # ─────────────────────────────────────────
   # Release — attach Windows + macOS artifacts
@@ -141,8 +144,8 @@ jobs:
           name: dawellservice-macos-bin
           path: dist/
 
-      - name: Rename macOS binary
-        run: mv dist/dawellservice-universal dist/dawellservice-mac
+      - name: Rename macOS binary for release
+        run: mv dist/dawellservice dist/dawellservice-mac
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
