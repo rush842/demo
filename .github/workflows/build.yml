@@ -82,8 +82,8 @@ jobs:
           lipo -create \
             target/x86_64-apple-darwin/release/dawellservice \
             target/aarch64-apple-darwin/release/dawellservice \
-            -output target/dawellservice-universal
-          lipo -info target/dawellservice-universal
+            -output target/dawellservice
+          lipo -info target/dawellservice
 
       - name: Upload artifact (Windows)
         if: matrix.os == 'windows-latest'
@@ -97,7 +97,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: target/dawellservice-universal
+          path: target/dawellservice
 
       - name: Upload artifact (Linux)
         if: matrix.os == 'ubuntu-latest'
