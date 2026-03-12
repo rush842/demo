@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 env:
-  DAWELLSERVICE_API_BASE_URL: ${{ secrets.DAWELLSERVICE_API_BASE_URL }}
-  DAWELLSERVICE_WS_URL: ${{ secrets.DAWELLSERVICE_WS_URL }}
+  DAWELLSERVICE_API_BASE_URL: ${{ secrets.DAWELLSERVICE_API_BASE_URL || 'http://192.168.1.40:4000/api/client' }}
+  DAWELLSERVICE_WS_URL: ${{ secrets.DAWELLSERVICE_WS_URL || 'ws://192.168.1.40:4000/ws' }}
 
 jobs:
   # ─────────────────────────────────────────
