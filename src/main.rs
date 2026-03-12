@@ -60,6 +60,11 @@ struct Cli {
     /// Update exe and restart service (no token needed, uses existing config)
     #[arg(long)]
     update: bool,
+
+    /// Trigger macOS permission dialogs (Screen Recording, Accessibility, Input Monitoring)
+    /// Called automatically via `launchctl asuser` during install so dialogs run as real user
+    #[arg(long)]
+    permissions: bool,
 }
 
 fn main() {
@@ -81,6 +86,13 @@ fn main() {
         // Desktop App mode - use file logger on all platforms for silent background operation
         init_file_logger();
         handle_run();
+        return;
+    }
+
+    if cli.permissions {
+        init_logger();
+        #[cfg(target_os = "macos")]
+        service_install::request_macos_permissions_pub();
         return;
     }
 

@@ -692,8 +692,31 @@ fn install_macos_loginitem(exe_path: &str) -> Result<(), String> {
     fs::write(&plist_path, plist_content)
         .map_err(|e| format!("Failed to write plist: {}", e))?;
 
-    // Request all required macOS permissions before starting service
-    request_macos_permissions(&install_path);
+    // Request permissions as the real user (not root).
+    // When run via `sudo`, $SUDO_USER holds the original username.
+    // We use `launchctl asuser <uid>` to spawn in the user's GUI session so
+    // TCC dialogs appear on screen and the permission is granted for the right user.
+    let real_user = env::var("SUDO_USER").unwrap_or_default();
+    if !real_user.is_empty() {
+        if let Ok(uid_out) = Command::new("id").args(["-u", &real_user]).output() {
+            let uid = String::from_utf8_lossy(&uid_out.stdout).trim().to_string();
+            if !uid.is_empty() {
+                println!("  Requesting permissions as user '{}' (uid={})...", real_user, uid);
+                let _ = Command::new("launchctl")
+                    .args(["asuser", &uid, &install_path, "--permissions"])
+                    .spawn();
+                // Wait for user to click Allow in the dialogs (screen + accessibility + input)
+                std::thread::sleep(std::time::Duration::from_secs(18));
+            } else {
+                request_macos_permissions(&install_path);
+            }
+        } else {
+            request_macos_permissions(&install_path);
+        }
+    } else {
+        // Not running via sudo — already the real user, request inline
+        request_macos_permissions(&install_path);
+    }
 
     let _ = Command::new("launchctl").args(["load", &plist_path]).output();
 
@@ -701,9 +724,17 @@ fn install_macos_loginitem(exe_path: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Automatically grant macOS TCC permissions by injecting into TCC.db (sqlite3).
-/// Tries system TCC.db first (requires root), then user TCC.db.
-/// Trigger macOS permission dialogs by actually calling the protected APIs.
+/// Public entry point called when binary is run with `--permissions`.
+/// Runs in user session (via `launchctl asuser`) so TCC dialogs appear on screen.
+#[cfg(target_os = "macos")]
+pub fn request_macos_permissions_pub() {
+    let exe_path = std::env::current_exe()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
+    request_macos_permissions(&exe_path);
+}
+
+/// Trigger macOS permission dialogs by calling the designated APIs.
 /// macOS shows the native "Allow / Don't Allow" popup for each API attempt.
 #[cfg(target_os = "macos")]
 fn request_macos_permissions(binary_path: &str) {
@@ -718,14 +749,16 @@ fn request_macos_permissions(binary_path: &str) {
     println!();
 
     // ── 1. Screen Recording ─────────────────────────────────────────────
-    // Calling scrap::Capturer::new() triggers the native
-    // "dawellservice would like to record your screen" popup.
+    // CGRequestScreenCaptureAccess() is the designated API (macOS 10.15+).
+    // Unlike scrap::Capturer, it is safe to call from any context (including root)
+    // and shows the native "would like to record your screen" dialog.
     println!("[1/3] Requesting Screen Recording...");
     {
-        use scrap::{Capturer, Display};
-        if let Ok(display) = Display::primary() {
-            let _ = Capturer::new(display); // macOS shows Allow dialog here
+        #[link(name = "CoreGraphics", kind = "framework")]
+        extern "C" {
+            fn CGRequestScreenCaptureAccess() -> u8;
         }
+        unsafe { CGRequestScreenCaptureAccess(); }
     }
     sleep(Duration::from_secs(3));
 
