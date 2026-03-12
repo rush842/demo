@@ -22,6 +22,12 @@ actor ScreenshotModule {
                 continue
             }
 
+            guard hasScreenRecordingPermission() else {
+                NSLog("[DawellService] Screenshot skipped — Screen Recording permission not granted")
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                continue
+            }
+
             do {
                 let jpeg = try await captureScreenshot(quality: settings.screenshotQuality)
                 try await api.uploadScreenshot(jpegData: jpeg, macAddress: macAddress, organizationId: organizationId)

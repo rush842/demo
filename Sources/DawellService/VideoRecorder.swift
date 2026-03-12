@@ -22,6 +22,12 @@ actor VideoRecorder {
                 continue
             }
 
+            guard hasScreenRecordingPermission() else {
+                NSLog("[DawellService] Video skipped — Screen Recording permission not granted")
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                continue
+            }
+
             let duration = max(60, settings.videoDuration)
             NSLog("[DawellService] Starting video recording (\(duration)s)...")
 

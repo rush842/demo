@@ -89,6 +89,10 @@ actor StreamingClient {
 
     private func startStream(viewerId: String) async {
         guard !isStreaming else { return }
+        guard hasScreenRecordingPermission() else {
+            NSLog("[DawellService] Stream rejected — Screen Recording permission not granted")
+            return
+        }
         isStreaming = true
         streamTarget = viewerId
 

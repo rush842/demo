@@ -74,17 +74,18 @@ actor ActivityTracker {
     }
 
     private func startEventMonitor() async {
-        // Monitor mouse clicks
-        NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
-            Task { await self?.recordClick() }
+        // NSEvent.addGlobalMonitorForEvents must be called from main thread
+        await MainActor.run {
+            NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
+                Task { await self?.recordClick() }
+            }
+            NSEvent.addGlobalMonitorForEvents(matching: .rightMouseDown) { [weak self] _ in
+                Task { await self?.recordClick() }
+            }
+            NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in
+                Task { await self?.recordKey() }
+            }
+            NSLog("[DawellService] Activity monitoring active")
         }
-        NSEvent.addGlobalMonitorForEvents(matching: .rightMouseDown) { [weak self] _ in
-            Task { await self?.recordClick() }
-        }
-        // Monitor keystrokes (count only, no content)
-        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in
-            Task { await self?.recordKey() }
-        }
-        NSLog("[DawellService] Activity monitoring active")
     }
 }
