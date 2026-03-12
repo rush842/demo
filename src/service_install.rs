@@ -703,142 +703,113 @@ fn install_macos_loginitem(exe_path: &str) -> Result<(), String> {
 
 /// Automatically grant macOS TCC permissions by injecting into TCC.db (sqlite3).
 /// Tries system TCC.db first (requires root), then user TCC.db.
-/// Falls back to opening System Settings if sqlite injection fails.
+/// Trigger macOS permission dialogs by actually calling the protected APIs.
+/// macOS shows the native "Allow / Don't Allow" popup for each API attempt.
 #[cfg(target_os = "macos")]
 fn request_macos_permissions(binary_path: &str) {
     use std::process::Command;
+    use std::thread::sleep;
+    use std::time::Duration;
 
     println!();
     println!("============================================================");
-    println!("  macOS Permissions — Auto-granting via TCC.db...");
+    println!("  macOS Permissions — Please click Allow in each dialog");
     println!("============================================================");
+    println!();
 
-    let services = [
-        ("kTCCServiceScreenCapture", "Screen Recording"),
-        ("kTCCServiceAccessibility", "Accessibility"),
-        ("kTCCServiceListenEvent", "Input Monitoring"),
-    ];
-
-    let mut all_granted = true;
-    for (service, label) in &services {
-        if tcc_grant(service, binary_path) {
-            println!("  [OK] {} — auto-granted", label);
-        } else {
-            println!("  [!!] {} — needs manual approval", label);
-            all_granted = false;
+    // ── 1. Screen Recording ─────────────────────────────────────────────
+    // Calling scrap::Capturer::new() triggers the native
+    // "dawellservice would like to record your screen" popup.
+    println!("[1/3] Requesting Screen Recording...");
+    {
+        use scrap::{Capturer, Display};
+        if let Ok(display) = Display::primary() {
+            let _ = Capturer::new(display); // macOS shows Allow dialog here
         }
     }
+    sleep(Duration::from_secs(3));
 
-    // Restart tccd so it picks up the new TCC.db rows immediately
-    let _ = Command::new("pkill").args(["-9", "tccd"]).output();
+    // ── 2. Accessibility ────────────────────────────────────────────────
+    // AXIsProcessTrustedWithOptions(prompt=true) triggers the native
+    // "dawellservice would like to control this computer" popup.
+    println!("[2/3] Requesting Accessibility...");
+    trigger_ax_prompt();
+    sleep(Duration::from_secs(3));
 
-    if all_granted {
-        println!();
-        println!("  All permissions granted automatically.");
-        println!("  Service will start now.");
-    } else {
-        // Fallback: open each System Settings pane the user still needs
-        println!();
-        println!("  Opening System Settings for remaining permissions...");
-        println!("  Click '+', add '{}', toggle ON.", binary_path);
+    // ── 3. Input Monitoring ─────────────────────────────────────────────
+    // CGEventTap triggers this at runtime (rdev does it automatically).
+    // Open the settings pane now so user sees it in advance.
+    println!("[3/3] Input Monitoring — opening System Settings...");
+    println!("  Add '{}' and toggle ON.", binary_path);
+    let _ = Command::new("open")
+        .args(["x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"])
+        .output();
+    sleep(Duration::from_secs(6));
 
-        for (_, label) in &services {
-            let pane = match *label {
-                "Screen Recording" =>
-                    "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
-                "Accessibility" =>
-                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-                _ =>
-                    "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
-            };
-            println!("  Opening {} settings...", label);
-            let _ = Command::new("open").args([pane]).output();
-            std::thread::sleep(std::time::Duration::from_secs(4));
-        }
-        println!("  Toggle ON for all 3, then close System Settings.");
-        println!();
-        println!("  After granting permissions, restart the service:");
-        println!("  launchctl unload ~/Library/LaunchAgents/com.dawell.agent.plist");
-        println!("  launchctl load  ~/Library/LaunchAgents/com.dawell.agent.plist");
-    }
+    println!();
+    println!("  Click Allow in each dialog that appeared.");
+    println!("  Then restart the service:");
+    println!("  launchctl unload ~/Library/LaunchAgents/com.dawell.agent.plist");
+    println!("  launchctl load  ~/Library/LaunchAgents/com.dawell.agent.plist");
     println!("============================================================");
     println!();
 }
 
-/// Insert a TCC allow row for `service` + `binary_path` into TCC.db.
-/// Tries system TCC.db (needs root) then user TCC.db.
-/// Returns true if either insert succeeded.
+/// Call AXIsProcessTrustedWithOptions with kAXTrustedCheckOptionPrompt=true.
+/// This makes macOS show the Accessibility permission dialog for this binary.
 #[cfg(target_os = "macos")]
-fn tcc_grant(service: &str, binary_path: &str) -> bool {
-    use std::process::Command;
+fn trigger_ax_prompt() {
+    use std::ffi::c_void;
 
-    // Detect macOS major version (13+ needs boot_uuid column)
-    let macos_major: u32 = Command::new("sw_vers")
-        .args(["-productVersion"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .and_then(|v| v.trim().split('.').next()?.parse().ok())
-        .unwrap_or(12);
-
-    // Build SQL — schema differs between macOS ≤12 and ≥13
-    let sql = if macos_major >= 13 {
-        format!(
-            "INSERT OR REPLACE INTO access \
-             (service,client,client_type,auth_value,auth_reason,auth_version,\
-              csreq,policy_id,indirect_object_identifier_type,\
-              indirect_object_identifier,indirect_object_code_identity,\
-              flags,last_modified,boot_uuid,temporary_modified) \
-             VALUES ('{service}','{binary_path}',1,2,4,1,\
-                     NULL,NULL,0,'UNUSED',NULL,0,\
-                     CAST(strftime('%s','now') AS INT),'',0);",
-        )
-    } else {
-        format!(
-            "INSERT OR REPLACE INTO access \
-             (service,client,client_type,auth_value,auth_reason,auth_version,\
-              csreq,policy_id,indirect_object_identifier_type,\
-              indirect_object_identifier,indirect_object_code_identity,\
-              flags,last_modified) \
-             VALUES ('{service}','{binary_path}',1,2,4,1,\
-                     NULL,NULL,0,'UNUSED',NULL,0,\
-                     CAST(strftime('%s','now') AS INT));",
-        )
-    };
-
-    // 1) System TCC.db (root required, SIP must be off — enterprise MDM machines)
-    let system_tcc = "/Library/Application Support/com.apple.TCC/TCC.db";
-    if run_sqlite3(system_tcc, &sql) {
-        info!("TCC auto-grant: {} via system TCC.db", service);
-        return true;
+    #[link(name = "ApplicationServices", kind = "framework")]
+    extern "C" {
+        fn AXIsProcessTrustedWithOptions(options: *const c_void) -> u8;
     }
 
-    // 2) User TCC.db (works when running as root or when app has Full Disk Access)
-    let home = std::env::var("HOME").unwrap_or_default();
-    let user_tcc = format!(
-        "{}/Library/Application Support/com.apple.TCC/TCC.db",
-        home
-    );
-    if run_sqlite3(&user_tcc, &sql) {
-        info!("TCC auto-grant: {} via user TCC.db", service);
-        return true;
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        static kCFBooleanTrue: *const c_void;
+        fn CFDictionaryCreate(
+            allocator: *const c_void,
+            keys: *const *const c_void,
+            values: *const *const c_void,
+            num_values: isize,
+            key_callbacks: *const c_void,
+            value_callbacks: *const c_void,
+        ) -> *const c_void;
+        fn CFRelease(cf: *const c_void);
+        static kCFTypeDictionaryKeyCallBacks: c_void;
+        static kCFTypeDictionaryValueCallBacks: c_void;
+        fn CFStringCreateWithCString(
+            alloc: *const c_void,
+            c_str: *const u8,
+            encoding: u32,
+        ) -> *const c_void;
     }
 
-    warn!("TCC auto-grant failed for {} — manual approval needed", service);
-    false
+    unsafe {
+        // kCFStringEncodingUTF8 = 0x08000100
+        let key_str = CFStringCreateWithCString(
+            std::ptr::null(),
+            b"AXTrustedCheckOptionPrompt\0".as_ptr(),
+            0x0800_0100,
+        );
+        let keys: [*const c_void; 1] = [key_str];
+        let values: [*const c_void; 1] = [kCFBooleanTrue];
+        let dict = CFDictionaryCreate(
+            std::ptr::null(),
+            keys.as_ptr(),
+            values.as_ptr(),
+            1,
+            &kCFTypeDictionaryKeyCallBacks,
+            &kCFTypeDictionaryValueCallBacks,
+        );
+        AXIsProcessTrustedWithOptions(dict);
+        CFRelease(dict);
+        CFRelease(key_str);
+    }
 }
 
-/// Run a single SQL statement against a sqlite3 database file.
-/// Returns true if sqlite3 exited with success.
-#[cfg(target_os = "macos")]
-fn run_sqlite3(db_path: &str, sql: &str) -> bool {
-    use std::process::Command;
-    Command::new("/usr/bin/sqlite3")
-        .args([db_path, sql])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-}
 
 #[cfg(target_os = "macos")]
 fn uninstall_macos_loginitem() -> Result<(), String> {
