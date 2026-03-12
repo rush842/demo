@@ -67,16 +67,20 @@ func registerViaWebSocket(config: ServiceConfig, sysInfo: SystemInfo) async thro
 
     let payload: [String: Any] = [
         "type": "register_desktop",
-        "userId": config.userId,
-        "organizationId": config.organizationId,
-        "macaddress": sysInfo.macAddress,
-        "machineId": sysInfo.machineId,
-        "hostname": sysInfo.hostname,
-        "ipaddress": sysInfo.ipAddress,
-        "operatingsystem": sysInfo.operatingSystem,
-        "cpu": sysInfo.cpuModel,
-        "ram": sysInfo.totalRam,
-        "screenresolution": sysInfo.screenResolution
+        "payload": [
+            "machineId": sysInfo.machineId,
+            "macAddress": sysInfo.macAddress,
+            "ipAddress": sysInfo.ipAddress,
+            "hostname": sysInfo.hostname,
+            "operatingSystem": sysInfo.operatingSystem,
+            "osVersion": sysInfo.osVersion,
+            "cpuModel": sysInfo.cpuModel,
+            "cpuCore": sysInfo.cpuCores,
+            "totalram": sysInfo.totalRam,
+            "screenresolution": sysInfo.screenResolution,
+            "userId": config.userId,
+            "organizationId": config.organizationId
+        ] as [String: Any]
     ]
 
     guard let data = try? JSONSerialization.data(withJSONObject: payload),
@@ -91,10 +95,13 @@ func unregisterViaWebSocket(config: ServiceConfig, sysInfo: SystemInfo) async {
     let client = WebSocketClient()
     await client.connect(url: config.wsUrl) { _ in }
     let payload: [String: Any] = [
-        "type": "installation_offline",
-        "macaddress": sysInfo.macAddress,
-        "userId": config.userId,
-        "organizationId": config.organizationId
+        "type": "unregister_desktop",
+        "payload": [
+            "machineId": sysInfo.machineId,
+            "macAddress": sysInfo.macAddress,
+            "userId": config.userId,
+            "organizationId": config.organizationId
+        ] as [String: Any]
     ]
     if let data = try? JSONSerialization.data(withJSONObject: payload),
        let json = String(data: data, encoding: .utf8) {
