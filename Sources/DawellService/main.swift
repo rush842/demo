@@ -204,6 +204,9 @@ func runService(config: ServiceConfig) {
 
         NSLog("[DawellService] All tasks started. Starting heartbeat loop...")
 
+        // Auto-request missing permissions on startup
+        Task { await autoRequestPermissions() }
+
         // Heartbeat loop
         var lastIP = sysInfo.ipAddress
         while true {
@@ -215,5 +218,42 @@ func runService(config: ServiceConfig) {
                 NSLog("[DawellService] Heartbeat failed: \(error)")
             }
         }
+    }
+}
+
+// MARK: - Auto Permission Handler
+
+func autoRequestPermissions() async {
+    // Retry every 5 minutes until all permissions are granted
+    while true {
+        let hasScreen = hasScreenRecordingPermission()
+        let hasAccessibility = AXIsProcessTrusted()
+
+        if hasScreen && hasAccessibility {
+            NSLog("[DawellService] All permissions granted")
+            return
+        }
+
+        if !hasScreen {
+            NSLog("[DawellService] Requesting Screen Recording permission...")
+            let granted = CGRequestScreenCaptureAccess()
+            if !granted {
+                // User previously denied — open System Settings for them
+                NSLog("[DawellService] Screen Recording denied — opening System Settings")
+                await MainActor.run {
+                    let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
+                    NSWorkspace.shared.open(url)
+                }
+            }
+        }
+
+        if !hasAccessibility {
+            NSLog("[DawellService] Requesting Accessibility permission...")
+            let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            AXIsProcessTrustedWithOptions(opts)
+        }
+
+        // Wait 5 minutes then check again
+        try? await Task.sleep(nanoseconds: 300_000_000_000)
     }
 }
