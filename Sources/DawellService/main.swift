@@ -165,7 +165,8 @@ func runService(config: ServiceConfig) {
             wsURL: config.wsUrl,
             macAddress: sysInfo.macAddress,
             userId: config.userId,
-            organizationId: config.organizationId
+            organizationId: config.organizationId,
+            sysInfo: sysInfo
         )
         await streaming.start()
 

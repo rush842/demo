@@ -8,16 +8,18 @@ actor StreamingClient {
     let macAddress: String
     let userId: Int
     let organizationId: Int
+    let sysInfo: SystemInfo
     private var wsClient: WebSocketClient?
     private var capture: ScreenStreamCapture?
     private var isStreaming = false
     private var streamTarget: String?
 
-    init(wsURL: String, macAddress: String, userId: Int, organizationId: Int) {
+    init(wsURL: String, macAddress: String, userId: Int, organizationId: Int, sysInfo: SystemInfo) {
         self.wsURL = wsURL
         self.macAddress = macAddress
         self.userId = userId
         self.organizationId = organizationId
+        self.sysInfo = sysInfo
     }
 
     func start() async {
@@ -28,14 +30,25 @@ actor StreamingClient {
             Task { await self?.handleMessage(message) }
         }
 
-        // Register as desktop
-        let payload: [String: Any] = [
+        // Register as desktop — payload must be nested under "payload" key with camelCase fields
+        let msg: [String: Any] = [
             "type": "register_desktop",
-            "macaddress": macAddress,
-            "userId": userId,
-            "organizationId": organizationId
+            "payload": [
+                "machineId": sysInfo.machineId,
+                "macAddress": sysInfo.macAddress,
+                "ipAddress": sysInfo.ipAddress,
+                "hostname": sysInfo.hostname,
+                "operatingSystem": sysInfo.operatingSystem,
+                "osVersion": sysInfo.osVersion,
+                "cpuModel": sysInfo.cpuModel,
+                "cpuCore": sysInfo.cpuCores,
+                "totalram": sysInfo.totalRam,
+                "screenresolution": sysInfo.screenResolution,
+                "userId": userId,
+                "organizationId": organizationId
+            ] as [String: Any]
         ]
-        if let data = try? JSONSerialization.data(withJSONObject: payload),
+        if let data = try? JSONSerialization.data(withJSONObject: msg),
            let json = String(data: data, encoding: .utf8) {
             try? await client.send(json)
         }
