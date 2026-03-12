@@ -105,3 +105,55 @@ jobs:
         with:
           name: ${{ matrix.asset_name }}
           path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+  release:
+    name: Create GitHub Release (latest)
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dawellservice-windows.exe
+          path: dist/windows/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dawellservice-macos
+          path: dist/macos/
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dawellservice-linux
+          path: dist/linux/
+
+      - name: Rename binaries for release
+        run: |
+          mv dist/windows/dawellservice.exe dist/dawellservice-windows.exe
+          mv dist/macos/dawellservice        dist/dawellservice-macos
+          mv dist/linux/dawellservice        dist/dawellservice-linux
+          chmod +x dist/dawellservice-macos dist/dawellservice-linux
+
+      - name: Delete existing latest release
+        run: gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest Build #${{ github.run_number }}"
+          body: "Automated build · commit ${{ github.sha }}"
+          make_latest: true
+          files: |
+            dist/dawellservice-windows.exe
+            dist/dawellservice-macos
+            dist/dawellservice-linux
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
