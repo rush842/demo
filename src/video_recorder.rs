@@ -6,6 +6,9 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::sleep;
 
+#[cfg(target_os = "windows")]
+use crate::screenshot_capture;
+
 
 pub struct VideoRecorder {
     client: Client,
