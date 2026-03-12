@@ -1,0 +1,231 @@
+name: Build DawellService
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+env:
+  DAWELLSERVICE_API_BASE_URL: ${{ secrets.DAWELLSERVICE_API_BASE_URL }}
+  DAWELLSERVICE_WS_URL: ${{ secrets.DAWELLSERVICE_WS_URL }}
+
+jobs:
+  # ─────────────────────────────────────────
+  # Windows → dawellservice.exe
+  # ─────────────────────────────────────────
+  build-windows:
+    name: Windows (.exe)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Rename binary
+        run: |
+          copy target\x86_64-pc-windows-msvc\release\dawellservice.exe dawellservice.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawellservice-windows
+          path: dawellservice.exe
+
+  # ─────────────────────────────────────────
+  # macOS → dawellservice.dmg
+  # ─────────────────────────────────────────
+  build-macos:
+    name: macOS (.dmg)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: macos-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build x86_64
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Build aarch64 (Apple Silicon)
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Create Universal Binary (fat binary)
+        run: |
+          lipo -create \
+            target/x86_64-apple-darwin/release/dawellservice \
+            target/aarch64-apple-darwin/release/dawellservice \
+            -output dawellservice-universal
+
+      - name: Ad-hoc code sign
+        run: codesign --force --deep --sign - dawellservice-universal
+
+      - name: Package as .dmg
+        run: |
+          mkdir -p dmg_stage
+          cp dawellservice-universal dmg_stage/dawellservice
+          chmod +x dmg_stage/dawellservice
+          hdiutil create \
+            -volname "DawellService" \
+            -srcfolder dmg_stage \
+            -ov \
+            -format UDZO \
+            dawellservice.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawellservice-macos
+          path: dawellservice.dmg
+
+  # ─────────────────────────────────────────
+  # Linux → dawellservice.AppImage
+  # ─────────────────────────────────────────
+  build-linux:
+    name: Linux (.AppImage)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxcb1-dev \
+            libxcb-shm0-dev \
+            libxcb-randr0-dev \
+            libxrandr-dev \
+            libx11-dev \
+            libssl-dev \
+            pkg-config \
+            fuse \
+            libfuse2
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: linux-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Download appimagetool
+        run: |
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage \
+            -O /usr/local/bin/appimagetool
+          chmod +x /usr/local/bin/appimagetool
+
+      - name: Create AppDir structure
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp target/x86_64-unknown-linux-gnu/release/dawellservice AppDir/usr/bin/dawellservice
+          chmod +x AppDir/usr/bin/dawellservice
+
+          # AppRun entry point
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/bash
+          SELF=$(readlink -f "$0")
+          HERE="${SELF%/*}"
+          exec "$HERE/usr/bin/dawellservice" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+
+          # .desktop file (required by AppImage)
+          cat > AppDir/dawellservice.desktop << 'EOF'
+          [Desktop Entry]
+          Name=DawellService
+          Exec=dawellservice
+          Icon=dawellservice
+          Type=Application
+          Categories=Utility;
+          EOF
+
+          # Placeholder icon (1x1 PNG) — replace with real icon if available
+          printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82' \
+            > AppDir/dawellservice.png
+
+      - name: Build AppImage
+        run: |
+          ARCH=x86_64 appimagetool AppDir dawellservice.AppImage
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawellservice-linux
+          path: dawellservice.AppImage
+
+  # ─────────────────────────────────────────
+  # Release — attach all 3 artifacts to GitHub Release
+  # ─────────────────────────────────────────
+  release:
+    name: Create Release
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dawellservice-windows
+          path: dist/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dawellservice-macos
+          path: dist/
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dawellservice-linux
+          path: dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/dawellservice.exe
+            dist/dawellservice.dmg
+            dist/dawellservice.AppImage
+          generate_release_notes: true

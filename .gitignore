@@ -1,0 +1,11 @@
+# Rust build output
+/target/
+
+# Environment variables (contains API URLs / secrets)
+.env
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
