@@ -16,6 +16,7 @@ use std::sync::mpsc::Sender;
 
 /// Incoming remote input event (forwarded by relay from browser viewer)
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct RemoteInputEvent {
     #[serde(rename = "type")]
     pub event_type: String,
@@ -533,7 +534,7 @@ fn simulate_rdev(
     clipboard_tx: Option<&Sender<ClipboardSync>>,
 ) {
     use std::sync::atomic::Ordering;
-    use rdev::{simulate, Button, EventType, Key};
+    use rdev::{simulate, Button, EventType};
 
     let sw = screen_width as f64;
     let sh = screen_height as f64;

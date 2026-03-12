@@ -8,6 +8,7 @@
 
 // ── Non-Windows stubs ─────────────────────────────────────────────────────────
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 pub fn show_label(_name: &str, _cursor_x: i32, _cursor_y: i32) {}
 
 #[cfg(not(target_os = "windows"))]

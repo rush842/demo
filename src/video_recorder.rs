@@ -967,6 +967,7 @@ fn capture_frame_for_video(
 }
 
 /// Pack two u32 values into a UINT64 attribute (high 32 = a, low 32 = b)
+#[cfg(target_os = "windows")]
 #[inline]
 fn pack(hi: u32, lo: u32) -> u64 {
     ((hi as u64) << 32) | lo as u64

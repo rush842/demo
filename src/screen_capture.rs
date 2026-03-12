@@ -290,7 +290,6 @@ where
                         // Screen unavailable (sleep/lock/frozen) — send status and retry
                         send_unavailable_frame(&on_frame);
                         sleep_interruptible(RETRY_INTERVAL, &stop_flag);
-                        consecutive_errors = 0;
                         // Re-init capturer from outer loop
                         continue 'outer;
                     }

@@ -617,7 +617,6 @@ fn get_screen_resolution() -> String {
                 }
             }
         }
-        return "1920x1080".to_string();
     }
 
     #[cfg(target_os = "windows")]

@@ -713,6 +713,7 @@ fn rdev_key_to_str(key: rdev::Key) -> Option<String> {
 }
 
 /// Map Windows Virtual Key code to a readable string
+#[cfg(target_os = "windows")]
 fn vk_to_str(vk: u16) -> Option<String> {
     match vk {
         // A-Z
