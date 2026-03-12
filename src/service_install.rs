@@ -1,6 +1,4 @@
-use log::info;
-#[cfg(target_os = "windows")]
-use log::warn;
+use log::{info, warn};
 use std::env;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::fs;
