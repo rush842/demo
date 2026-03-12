@@ -20,12 +20,33 @@ struct ServiceConfig: Codable {
     }
 }
 
+// Token values may be Int or String (e.g. "40" vs 40) — handle both
 struct TokenPayload: Decodable {
     let userId: Int
     let organizationId: Int
+
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
         case organizationId = "organization_id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // Try Int first, then String
+        if let v = try? c.decode(Int.self, forKey: .userId) {
+            userId = v
+        } else {
+            let s = try c.decode(String.self, forKey: .userId)
+            guard let v = Int(s) else { throw DecodingError.dataCorruptedError(forKey: .userId, in: c, debugDescription: "Expected Int") }
+            userId = v
+        }
+        if let v = try? c.decode(Int.self, forKey: .organizationId) {
+            organizationId = v
+        } else {
+            let s = try c.decode(String.self, forKey: .organizationId)
+            guard let v = Int(s) else { throw DecodingError.dataCorruptedError(forKey: .organizationId, in: c, debugDescription: "Expected Int") }
+            organizationId = v
+        }
     }
 }
 

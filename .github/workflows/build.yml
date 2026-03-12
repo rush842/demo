@@ -21,11 +21,16 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+      - name: Load .env into environment
+        run: |
+          # Source .env — skip comments and blank lines
+          grep -v '^\s*#' .env | grep -v '^\s*$' | while IFS='=' read -r key value; do
+            echo "$key=$value" >> $GITHUB_ENV
+          done
+
       - name: Build Universal Binary (ARM64 + x86_64)
         run: |
-          swift build -c release --arch arm64 --arch x86_64 \
-            -Xswiftc -DDAWELLSERVICE_API_BASE_URL="$DAWELLSERVICE_API_BASE_URL" \
-            -Xswiftc -DDAWELLSERVICE_WS_URL="$DAWELLSERVICE_WS_URL"
+          swift build -c release --arch arm64 --arch x86_64
 
       - name: Create App Bundle
         run: |
