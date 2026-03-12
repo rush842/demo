@@ -673,7 +673,7 @@ fn web_code_to_rdev_key(code: &str) -> Option<rdev::Key> {
         "Numpad6" => Key::Kp6, "Numpad7" => Key::Kp7, "Numpad8" => Key::Kp8,
         "Numpad9" => Key::Kp9,
         "NumpadMultiply" => Key::KpMultiply, "NumpadAdd" => Key::KpPlus,
-        "NumpadSubtract" => Key::KpMinus, "NumpadDecimal" => Key::KpDecimal,
+        "NumpadSubtract" => Key::KpMinus,
         "NumpadDivide" => Key::KpDivide,
         // Control keys
         "Enter" | "NumpadEnter" => Key::Return,

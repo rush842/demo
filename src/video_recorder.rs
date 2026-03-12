@@ -6,7 +6,6 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::sleep;
 
-use crate::screenshot_capture;
 
 pub struct VideoRecorder {
     client: Client,
@@ -561,8 +560,10 @@ fn encode_mjpeg_avi(frames: &[Vec<u8>], width: u32, height: u32, fps: u32) -> Ve
     w32(&mut buf, 0); w32(&mut buf, 0); // ClrUsed, ClrImportant
 
     // Close strl + hdrl
-    set32(&mut buf, strl_size_pos, (buf.len() - strl_size_pos - 4) as u32);
-    set32(&mut buf, hdrl_size_pos, (buf.len() - hdrl_size_pos - 4) as u32);
+    let n = (buf.len() - strl_size_pos - 4) as u32;
+    set32(&mut buf, strl_size_pos, n);
+    let n = (buf.len() - hdrl_size_pos - 4) as u32;
+    set32(&mut buf, hdrl_size_pos, n);
 
     // ── LIST movi ─────────────────────────────────────────────────────────────
     wcc(&mut buf, b"LIST");
@@ -581,7 +582,8 @@ fn encode_mjpeg_avi(frames: &[Vec<u8>], width: u32, height: u32, fps: u32) -> Ve
         if frame_size % 2 != 0 { buf.push(0); } // word-align padding
         index.push((frame_offset, frame_size));
     }
-    set32(&mut buf, movi_size_pos, (buf.len() - movi_size_pos - 4) as u32);
+    let n = (buf.len() - movi_size_pos - 4) as u32;
+    set32(&mut buf, movi_size_pos, n);
 
     // ── idx1 ─────────────────────────────────────────────────────────────────
     wcc(&mut buf, b"idx1");
@@ -594,7 +596,8 @@ fn encode_mjpeg_avi(frames: &[Vec<u8>], width: u32, height: u32, fps: u32) -> Ve
     }
 
     // Fill RIFF size
-    set32(&mut buf, riff_size_pos, (buf.len() - riff_size_pos - 4) as u32);
+    let n = (buf.len() - riff_size_pos - 4) as u32;
+    set32(&mut buf, riff_size_pos, n);
 
     buf
 }
