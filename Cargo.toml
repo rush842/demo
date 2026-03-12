@@ -1,0 +1,90 @@
+[package]
+name = "dawellservice"
+version = "0.1.0"
+edition = "2021"
+description = "Dawell360 background service - registration and heartbeat"
+
+[build-dependencies]
+dotenvy = "0.15"
+
+[dependencies]
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Base64 for token decoding
+base64 = "0.22"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "native-tls-vendored", "multipart", "blocking"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# System info
+sysinfo = "0.30"
+mac_address = "1.1"
+hostname = "0.4"
+local-ip-address = "0.6"
+
+# UUID fallback for machine ID
+uuid = { version = "1", features = ["v4"] }
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# File system paths
+dirs = "5"
+
+# Timestamps for file logging
+chrono = "0.4"
+
+# Encryption for config file
+aes-gcm = "0.10"
+sha2 = "0.10"
+rand = "0.8"
+
+# WebSocket client (native-tls enables WSS / wss:// support)
+tungstenite = { version = "0.24", features = ["native-tls"] }
+
+# Screen capture
+scrap = "0.5"
+image = "0.25"
+
+# Ctrl+C handler for graceful shutdown
+ctrlc = "3.4"
+
+# Lazy static for global caching
+lazy_static = "1.4"
+
+# macOS + Linux: keyboard/mouse input monitoring (rdev uses CGEventTap on macOS, X11 XRecord on Linux)
+[target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
+rdev = "0.5"
+# Clipboard — macOS/Linux use system clipboard
+arboard = "3.3"
+
+# Linux only: pure Rust X11 client for foreground window detection (replaces xdotool)
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.13", features = ["all-extensions"] }
+
+# Windows API for process management, keyboard/window/clipboard monitoring, GDI screen capture
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Com",
+    "Win32_Media",
+    "Win32_Media_MediaFoundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+] }
