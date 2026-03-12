@@ -755,7 +755,11 @@ fn request_macos_permissions(binary_path: &str) {
             let _ = Command::new("open").args([pane]).output();
             std::thread::sleep(std::time::Duration::from_secs(4));
         }
-        println!("  Toggle ON, then close System Settings.");
+        println!("  Toggle ON for all 3, then close System Settings.");
+        println!();
+        println!("  After granting permissions, restart the service:");
+        println!("  launchctl unload ~/Library/LaunchAgents/com.dawell.agent.plist");
+        println!("  launchctl load  ~/Library/LaunchAgents/com.dawell.agent.plist");
     }
     println!("============================================================");
     println!();
